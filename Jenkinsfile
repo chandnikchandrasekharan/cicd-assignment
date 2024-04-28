@@ -83,7 +83,7 @@ pipeline {
                                     excludes: '',
                                     execCommand: '''
                                         cd /opt/deployment/
-                                        ansible-playbook start_container.yml
+                                        ansible-playbook deploy_container.yml
                                     ''',
                                     execTimeout: 120000,
                                     flatten: false,
