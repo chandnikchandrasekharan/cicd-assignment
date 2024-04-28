@@ -39,7 +39,7 @@ public class SystemTests {
 
 		restTemplate.delete(url + "/" + entity.getBody().getId());
 		Assertions.assertThat(restTemplate.getForObject(url, Employee[].class)).isEmpty();
-	}
+	};
 
 	@Test
 	public void testErrorHandlingReturnsBadRequest() {
