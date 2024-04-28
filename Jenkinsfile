@@ -1,48 +1,29 @@
-
 pipeline {
     agent any
     tools {
-        maven 'maven-3.9.6'
+        maven 'Maven'
     }
 
     stages {
         stage('Git Checkout') {
             steps {
-                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/thomassharun/employees-cicd.git']])
+                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/chandnikchandrasekharan/cicd-assignment.git']])
                 echo 'Git Checkout Completed'
             }
         }
-        stage('Maven Build') {
+    stage('Maven Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                bat 'mvn clean package -DskipTests'
                 echo 'Maven build Completed'
             }
         }
-        //**
-        stage('Integration Test') {
+    stage('JUnit Test and Report') {
             steps {
-                // Run integration tests
+                // Run unit tests
                 script {
                     try {
-                        sh 'mvn test -Dtest=com.tus.employees.controllers.IntegrationTests'
-                    // junit 'src/reports/*-jupiter.xml'
-                    } catch (err) {
-                        currentBuild.result = 'FAILURE'
-                        echo 'Integration tests failed!'
-                        error 'Integration tests failed!'
-                    }
-                }
-            echo 'Integration test Completed'
-            }
-        }
-        //***
-        stage('JUnit Test') {
-            steps {
-                // Run Junit tests
-                script {
-                    try {
-                        sh 'mvn clean test surefire-report:report' 
-                        //junit 'src/reports/*-jupiter.xml'
+                        bat 'mvn clean test surefire-report:report' 
+                        junit allowEmptyResults: true, testResults: '*/target/surefire-reports/.xml'
                     } catch (err) {
                         currentBuild.result = 'FAILURE'
                         echo 'Unit tests failed!'
@@ -52,21 +33,20 @@ pipeline {
                 echo 'JUnit test Completed'
             }
         }
-
-        stage('SonarQube Analysis') {
+    stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh '''mvn clean verify sonar:sonar -Dsonar.projectKey=cicd-full -Dsonar.projectName='cicd-full' -Dsonar.host.url=http://localhost:9000''' //port 9000 is default for sonar
+                    bat '''mvn clean verify sonar:sonar -Dsonar.projectKey=cicd-pipeline-project -Dsonar.projectName='cicd-pipeline-project' -Dsonar.host.url=http://localhost:9000''' //port 9000 is default for sonar
                     echo 'SonarQube Analysis Completed'
                 }
             }
         }
-        stage('Copy artifacts to EC2') {
+    stage('Copy artifact to EC2') {
             steps {
                 sshPublisher(
                     publishers: [
                         sshPublisherDesc(
-                            configName: 'ansible-server1',
+                            configName: 'ansible-server',
                             transfers: [
                                 sshTransfer(
                                     cleanRemote: false,
@@ -77,7 +57,7 @@ pipeline {
                                     makeEmptyDirs: false,
                                     noDefaultExcludes: false,
                                     patternSeparator: '[, ]+',
-                                    remoteDirectory: '//opt//deploy-sharun',
+                                    remoteDirectory: '//opt//deployment',
                                     remoteDirectorySDF: false,
                                     removePrefix: 'target',
                                     sourceFiles: 'target/*.jar'
@@ -91,18 +71,18 @@ pipeline {
                 )
             }
         }
-        stage('Deploy') {
+        stage('Run Docker Container') {
             steps {
                 sshPublisher(
                     publishers: [
                         sshPublisherDesc(
-                            configName: 'ansible-server1',
+                            configName: 'ansible-server',
                             transfers: [
                                 sshTransfer(
                                     cleanRemote: false,
                                     excludes: '',
                                     execCommand: '''
-                                        cd /opt/deploy-sharun/
+                                        cd /opt/deployment/
                                         ansible-playbook start_container.yml
                                     ''',
                                     execTimeout: 120000,
@@ -122,8 +102,10 @@ pipeline {
                         )
                     ]
                 )
+                 echo 'Deployment Completed'
             }
         }
+    
 
     }
     post {
